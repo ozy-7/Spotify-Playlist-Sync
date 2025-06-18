@@ -2,7 +2,6 @@ import streamlit as st
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
-# Spotify API credentials
 CLIENT_ID = st.secrets["client_id"]
 CLIENT_SECRET = st.secrets["client_secret"]
 REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"
@@ -11,27 +10,45 @@ SCOPE = "playlist-modify-public playlist-modify-private playlist-read-private pl
 st.set_page_config(page_title="Spotify Playlist Sync", page_icon="🎵")
 st.title("🎵 Spotify Playlist Sync")
 
-# Token varsa session state'e kaydet
-if "token_info" not in st.session_state:
-    auth_manager = SpotifyOAuth(
+# Her kullanıcı için ayrı auth_manager yarat
+def get_auth_manager():
+    return SpotifyOAuth(
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
         redirect_uri=REDIRECT_URI,
         scope=SCOPE,
+        cache_path=".cache-" + st.session_state.get("user_id", ""),
         open_browser=False
     )
 
-    if "code" in st.query_params:
-        code = st.query_params["code"]
-        token_info = auth_manager.get_access_token(code=code, as_dict=True)
+# Kullanıcı ID'yi session_state'de tut (basitçe unique key)
+if "user_id" not in st.session_state:
+    import uuid
+    st.session_state.user_id = str(uuid.uuid4())
+
+auth_manager = get_auth_manager()
+
+# Eğer oturumda token yoksa veya yenileme gerekiyorsa al
+token_info = st.session_state.get("token_info", None)
+
+if not token_info:
+    if "code" in st.experimental_get_query_params():
+        code = st.experimental_get_query_params()["code"][0]
+        token_info = auth_manager.get_access_token(code, as_dict=True)
         st.session_state.token_info = token_info
+        # Yönlendirme sonrası query param'leri temizle
+        st.experimental_set_query_params()
     else:
         auth_url = auth_manager.get_authorize_url()
         st.markdown(f"[🔐 Login with Spotify]({auth_url})", unsafe_allow_html=True)
         st.stop()
+else:
+    # Token yenileme kontrolü
+    if auth_manager.is_token_expired(token_info):
+        token_info = auth_manager.refresh_access_token(token_info['refresh_token'])
+        st.session_state.token_info = token_info
 
-# Token varsa Spotipy nesnesini oluştur
-token = st.session_state.token_info["access_token"]
+token = token_info['access_token']
 sp = spotipy.Spotify(auth=token)
 
 # Kullanıcı bilgisi
