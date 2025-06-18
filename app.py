@@ -5,7 +5,7 @@ from spotipy.oauth2 import SpotifyOAuth
 # Enter your Spotify API credentials
 CLIENT_ID = st.secrets["client_id"]
 CLIENT_SECRET = st.secrets["client_secret"]
-REDIRECT_URI = "spotify-playlist-sync.streamlit.app"  # Gerekirse güncellenir
+REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"  # Gerekirse güncellenir
 SCOPE = "playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative user-read-private"
 
 st.set_page_config(page_title="Spotify Playlist Sync", page_icon="🎵")
