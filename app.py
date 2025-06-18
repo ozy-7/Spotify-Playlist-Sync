@@ -2,38 +2,47 @@ import streamlit as st
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
-# Enter your Spotify API credentials
+# Spotify API credentials
 CLIENT_ID = st.secrets["client_id"]
 CLIENT_SECRET = st.secrets["client_secret"]
-REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"  # Gerekirse güncellenir
+REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"
 SCOPE = "playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative user-read-private"
 
 st.set_page_config(page_title="Spotify Playlist Sync", page_icon="🎵")
-
 st.title("🎵 Spotify Playlist Sync")
 
-# Authentication
+# SpotifyOAuth Object
+auth_manager = SpotifyOAuth(
+    client_id=CLIENT_ID,
+    client_secret=CLIENT_SECRET,
+    redirect_uri=REDIRECT_URI,
+    scope=SCOPE,
+    open_browser=False
+)
+
+# Login control
 if "token_info" not in st.session_state:
-    auth = SpotifyOAuth(client_id=CLIENT_ID, client_secret=CLIENT_SECRET,
-                        redirect_uri=REDIRECT_URI, scope=SCOPE,
-                        show_dialog=True, open_browser=False)
-    auth_url = auth.get_authorize_url()
-    st.markdown(f"[Login with Spotify]({auth_url})")
-    code = st.text_input("Paste the URL you were redirected to after login:")
-    if code:
-        code = code.split("code=")[-1]
-        token_info = auth.get_access_token(code)
+
+    if "code" in st.query_params:
+        code = st.query_params["code"]
+        token_info = auth_manager.get_access_token(code=code, as_dict=True)
         st.session_state.token_info = token_info
         st.experimental_rerun()
+    else:
+
+        auth_url = auth_manager.get_authorize_url()
+        st.markdown(f"[Login with Spotify]({auth_url})", unsafe_allow_html=True)
+
+
 else:
-    token = st.session_state.token_info['access_token']
+    token = st.session_state.token_info["access_token"]
     sp = spotipy.Spotify(auth=token)
 
-    # Obtain playlists
     user = sp.current_user()
     st.success(f"Logged in as: {user['display_name']}")
+
     playlists = sp.current_user_playlists(limit=50)
-    playlist_options = {p['name']: p['id'] for p in playlists['items']}
+    playlist_options = {p["name"]: p["id"] for p in playlists["items"]}
 
     source = st.selectbox("Select Source Playlist", list(playlist_options.keys()))
     target = st.selectbox("Select Target Playlist", list(playlist_options.keys()))
