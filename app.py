@@ -20,20 +20,26 @@ auth_manager = SpotifyOAuth(
     show_dialog=True
 )
 
-# Giriş yapılmamışsa Spotify linki göster
 query_params = st.query_params
-if "code" not in query_params:
+if "code" in query_params:
+    code = query_params["code"]
+    if isinstance(code, list):
+        code = code[0]
+
+    try:
+        token_info = auth_manager.get_access_token(code, as_dict=True)
+        if token_info and "access_token" in token_info:
+            sp = spotipy.Spotify(auth=token_info["access_token"])
+            user = sp.current_user()
+            st.success(f"Hoş geldin, {user['display_name']}!")
+        else:
+            st.error("Access token alınamadı. Lütfen tekrar deneyin.")
+    except spotipy.SpotifyOauthError as e:
+        st.error("Spotify ile bağlantı kurulamadı. Token süresi dolmuş olabilir. Yeniden giriş yap.")
+        st.stop()
+else:
     auth_url = auth_manager.get_authorize_url()
-    st.title("🎵 Spotify Playlist Sync")
     st.markdown(f"[Login with Spotify]({auth_url})", unsafe_allow_html=True)
-    st.stop()
-
-# Code varsa token al ve kullanıcıyı tanı
-code = query_params["code"][0]  # 👈 query'den gelen code her zaman liste olur!
-token_info = auth_manager.get_access_token(code, as_dict=True)
-
-if not token_info or "access_token" not in token_info:
-    st.error("Spotify yetkilendirme başarısız oldu. Lütfen tekrar giriş yapın.")
     st.stop()
 
 # Spotify client'ı oluştur
