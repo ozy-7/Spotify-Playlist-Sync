@@ -45,7 +45,7 @@ if "access_token" not in st.session_state:
         try:
             token_info = auth_manager.get_access_token(code, as_dict=True)
             st.session_state.access_token = token_info["access_token"]
-            st.experimental_rerun()
+            st.rerun()
         except spotipy.oauth2.SpotifyOauthError:
             st.error("Token alınamadı. Yeniden giriş yapmayı deneyin.")
             st.stop()
