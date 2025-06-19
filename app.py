@@ -8,7 +8,7 @@ CLIENT_SECRET = st.secrets["client_secret"]
 REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"
 SCOPE = "playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative user-read-private"
 
-st.set_page_config(page_title="Spotify Playlist Sync", page_icon="🎵")
+st.set_page_config(page_title="Spotify Playlist Sync", page_icon=a"🎵")
 st.title("🎵 Spotify Playlist Sync")
 
 def get_auth_manager(user_id):
@@ -29,22 +29,18 @@ token_info = st.session_state.get("token_info", None)
 
 query_params = st.query_params
 
-if not token_info:
-    if "code" in query_params:
-        code = query_params["code"][0]
-        token_info = auth_manager.get_access_token(code, as_dict=True)
-        st.session_state.token_info = token_info
-        # Query parametreleri temizle (Streamlit 1.24+ ile)
-        st.experimental_set_query_params()
-    else:
-        auth_url = auth_manager.get_authorize_url()
-        st.markdown(f"[🔐 Login with Spotify]({auth_url})", unsafe_allow_html=True)
-        st.stop()
+auth_manager = SpotifyOAuth(client_id=CLIENT_ID,
+                            client_secret=CLIENT_SECRET,
+                            redirect_uri=REDIRECT_URI,
+                            scope=SCOPE)
+
+if "code" in query_params:
+    code = query_params["code"][0]
+    token_info = auth_manager.get_access_token(code, as_dict=True)
+    st.write("Access token alındı")
 else:
-    # Token süresi dolmuş mu kontrol et ve yenile
-    if auth_manager.is_token_expired(token_info):
-        token_info = auth_manager.refresh_access_token(token_info['refresh_token'])
-        st.session_state.token_info = token_info
+    auth_url = auth_manager.get_authorize_url()
+    st.markdown(f"[Login with Spotify]({auth_url})")
 
 try:
     token = token_info['access_token']
