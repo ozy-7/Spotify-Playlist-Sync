@@ -18,6 +18,7 @@ auth_manager = SpotifyOAuth(
     redirect_uri=REDIRECT_URI,
     scope=SCOPE,
     show_dialog=True
+    cache_path=None
 )
 
 query_params = st.query_params
