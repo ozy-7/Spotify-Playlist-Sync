@@ -8,7 +8,7 @@ CLIENT_SECRET = st.secrets["client_secret"]
 REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"
 SCOPE = "playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative user-read-private"
 
-st.set_page_config(page_title="Spotify Playlist Sync", page_icon=a"🎵")
+st.set_page_config(page_title="Spotify Playlist Sync", page_icon="🎵")
 st.title("🎵 Spotify Playlist Sync")
 
 def get_auth_manager(user_id):
