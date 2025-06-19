@@ -2,79 +2,88 @@ import streamlit as st
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
-# Streamlit ayarları
-st.set_page_config(page_title="Spotify Playlist Sync", page_icon="🎵")
-
-# Spotify API bilgileri (Streamlit Secrets kısmında tutulur)
+# 📌 Streamlit secrets içinden client bilgilerini alıyoruz
 CLIENT_ID = st.secrets["client_id"]
 CLIENT_SECRET = st.secrets["client_secret"]
-REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"
-SCOPE = "playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative user-read-private"
+REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"  # 🔒 Spotify Dashboard ile %100 aynı olmalı
 
-# Spotipy Auth Manager
+SCOPE = (
+    "playlist-modify-public "
+    "playlist-modify-private "
+    "playlist-read-private "
+    "playlist-read-collaborative "
+    "user-read-private"
+)
+
+st.set_page_config(page_title="Spotify Playlist Sync", page_icon="🎵")
+st.title("🎵 Spotify Playlist Sync")
+
+# 🔐 Her oturum için yeni auth manager
 auth_manager = SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
     redirect_uri=REDIRECT_URI,
     scope=SCOPE,
     show_dialog=True,
-    cache_path=None
+    cache_path=None  # ❗ Önceki token'ların cachelenmesini engeller
 )
 
 query_params = st.query_params
-if "code" in query_params:
-    code = query_params["code"]
-    if isinstance(code, list):
-        code = code[0]
+code = query_params.get("code", [None])[0] if isinstance(query_params.get("code"), list) else query_params.get("code")
 
-    try:
-        token_info = auth_manager.get_access_token(code, as_dict=True)
-        if token_info and "access_token" in token_info:
-            sp = spotipy.Spotify(auth=token_info["access_token"])
-            user = sp.current_user()
-            st.success(f"Hoş geldin, {user['display_name']}!")
-        else:
-            st.error("Access token alınamadı. Lütfen tekrar deneyin.")
-    except spotipy.SpotifyOauthError as e:
-        st.error("Spotify ile bağlantı kurulamadı. Token süresi dolmuş olabilir. Yeniden giriş yap.")
+if "access_token" not in st.session_state:
+    if code:
+        try:
+            token_info = auth_manager.get_access_token(code, as_dict=True)
+            st.session_state.access_token = token_info["access_token"]
+            st.experimental_rerun()
+        except spotipy.oauth2.SpotifyOauthError:
+            st.error("Token alınamadı. Yeniden giriş yapmayı deneyin.")
+            st.stop()
+    else:
+        auth_url = auth_manager.get_authorize_url()
+        st.markdown(f"[👉 Login with Spotify]({auth_url})", unsafe_allow_html=True)
         st.stop()
-else:
-    auth_url = auth_manager.get_authorize_url()
-    st.markdown(f"[Login with Spotify]({auth_url})", unsafe_allow_html=True)
+
+# 🟢 Kullanıcı başarıyla giriş yaptıysa:
+sp = spotipy.Spotify(auth=st.session_state.access_token)
+
+try:
+    user = sp.current_user()
+    st.success(f"Hoş geldin, **{user['display_name']}**!")
+except Exception as e:
+    st.error("Giriş başarısız. Lütfen tekrar giriş yap.")
     st.stop()
 
-# Spotify client'ı oluştur
-sp = spotipy.Spotify(auth=token_info["access_token"])
-user = sp.current_user()
-st.success(f"Hoş geldin, {user['display_name']}! 👋")
+# 🎵 Kullanıcının playlistlerini çek
+playlists = sp.current_user_playlists(limit=50)
+playlist_dict = {p['name']: p['id'] for p in playlists['items']}
 
-# Playlist'leri getir
-playlists = sp.current_user_playlists(limit=50)["items"]
-playlist_options = {p['name']: p['id'] for p in playlists}
+if len(playlist_dict) < 2:
+    st.warning("En az iki playlist'e sahip olmalısınız.")
+    st.stop()
 
-# Playlist seçimi
-source = st.selectbox("🎧 Source Playlist", list(playlist_options.keys()))
-target = st.selectbox("📥 Target Playlist", list(playlist_options.keys()))
-count = st.number_input("🎶 Kaç şarkı eşitlensin?", min_value=1, max_value=100, value=50)
+source = st.selectbox("🎧 Kaynak Playlist", list(playlist_dict.keys()))
+target = st.selectbox("🎯 Hedef Playlist", list(playlist_dict.keys()))
+count = st.number_input("Kaç şarkıyı senkronize etmek istersiniz?", 1, 100, 50)
 
-# Eşitle butonu
 if st.button("🔁 Sync Playlists"):
     try:
-        source_id = playlist_options[source]
-        target_id = playlist_options[target]
+        source_id = playlist_dict[source]
+        target_id = playlist_dict[target]
 
         total_tracks = sp.playlist_tracks(source_id, fields="total")["total"]
         offset = max(0, total_tracks - count)
-
         source_tracks = sp.playlist_tracks(source_id, limit=count, offset=offset, fields="items(track(uri))")
-        source_uris = [t["track"]["uri"] for t in source_tracks["items"]]
+        source_uris = [item["track"]["uri"] for item in source_tracks["items"] if item.get("track")]
 
         target_tracks = sp.playlist_tracks(target_id, fields="items(track(uri))")["items"]
-        target_uris = [t["track"]["uri"] for t in target_tracks]
+        target_uris = [item["track"]["uri"] for item in target_tracks if item.get("track")]
 
         new_uris = [uri for uri in source_uris if uri not in target_uris]
 
-        while len(target_uris) + len(new_uris) > count:
+        # Hedef playlist'te fazla varsa sil
+        while len(target_uris) + len(new_uris) > count and target_tracks:
             to_remove = target_tracks[0]["track"]["uri"]
             sp.playlist_remove_all_occurrences_of_items(target_id, [to_remove])
             target_tracks.pop(0)
@@ -82,8 +91,8 @@ if st.button("🔁 Sync Playlists"):
 
         if new_uris:
             sp.playlist_add_items(target_id, new_uris)
-            st.success(f"{len(new_uris)} yeni şarkı eklendi 🎉")
+            st.success(f"✅ {len(new_uris)} yeni şarkı eklendi!")
         else:
-            st.info("Eklenmesi gereken yeni şarkı bulunamadı.")
+            st.info("⚠️ Yeni şarkı yok. Zaten güncel.")
     except Exception as e:
-        st.error(f"Hata: {str(e)}")
+        st.error(f"Hata oluştu: {str(e)}")
