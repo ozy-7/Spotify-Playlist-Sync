@@ -44,7 +44,7 @@ if "token_info" not in st.session_state:
         try:
             token_info = auth_manager.get_access_token(code, as_dict=True)
             st.session_state.token_info = token_info  # 🎯 Session'da sakla
-            st.experimental_set_query_params()  # 🔄 URL'deki `code` parametresini temizle
+            st.query_params()  # 🔄 URL'deki `code` parametresini temizle
             st.rerun()
         except spotipy.oauth2.SpotifyOauthError:
             st.error("Token alınamadı. Yeniden giriş yapmayı deneyin.")
