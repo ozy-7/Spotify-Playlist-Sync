@@ -1,11 +1,14 @@
 import streamlit as st
 import spotipy
+import tempfile
+import uuid
+import os
 from spotipy.oauth2 import SpotifyOAuth
 
 # 📌 Streamlit secrets içinden client bilgilerini alıyoruz
 CLIENT_ID = st.secrets["client_id"]
 CLIENT_SECRET = st.secrets["client_secret"]
-REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"  # 🔒 Spotify Dashboard ile %100 aynı olmalı
+REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"
 
 SCOPE = (
     "playlist-modify-public "
@@ -18,14 +21,20 @@ SCOPE = (
 st.set_page_config(page_title="Spotify Playlist Sync", page_icon="🎵")
 st.title("🎵 Spotify Playlist Sync")
 
+# 🧠 Oturuma özel cache path oluştur
+if "cache_path" not in st.session_state:
+    session_id = str(uuid.uuid4())
+    temp_dir = tempfile.gettempdir()
+    st.session_state.cache_path = os.path.join(temp_dir, f".spotify_cache_{session_id}")
+
 # 🔐 Her oturum için yeni auth manager
 auth_manager = SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
     redirect_uri=REDIRECT_URI,
     scope=SCOPE,
-    show_dialog=True,
-    cache_path=None  # ❗ Önceki token'ların cachelenmesini engeller
+    cache_path=st.session_state.cache_path,
+    show_dialog=True  # Her kullanıcıdan giriş istemek için
 )
 
 query_params = st.query_params
@@ -36,7 +45,7 @@ if "access_token" not in st.session_state:
         try:
             token_info = auth_manager.get_access_token(code, as_dict=True)
             st.session_state.access_token = token_info["access_token"]
-            st.experimental_rerun()
+            st.rerun()
         except spotipy.oauth2.SpotifyOauthError:
             st.error("Token alınamadı. Yeniden giriş yapmayı deneyin.")
             st.stop()
@@ -51,7 +60,7 @@ sp = spotipy.Spotify(auth_manager=auth_manager)
 try:
     user = sp.current_user()
     st.success(f"Hoş geldin, **{user['display_name']}**!")
-except Exception as e:
+except Exception:
     st.error("Giriş başarısız. Lütfen tekrar giriş yap.")
     st.stop()
 
