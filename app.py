@@ -27,15 +27,17 @@ if "cache_path" not in st.session_state:
     temp_dir = tempfile.gettempdir()
     st.session_state.cache_path = os.path.join(temp_dir, f".spotify_cache_{session_id}")
 
-# 🔐 Her oturum için yeni auth manager
-auth_manager = SpotifyOAuth(
-    client_id=CLIENT_ID,
-    client_secret=CLIENT_SECRET,
-    redirect_uri=REDIRECT_URI,
-    scope=SCOPE,
-    cache_path=st.session_state.cache_path
-)
+if "auth_manager" not in st.session_state:
+    st.session_state.auth_manager = SpotifyOAuth(
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET,
+        redirect_uri=REDIRECT_URI,
+        scope=SCOPE,
+        cache_path=st.session_state.cache_path,
+        show_dialog=True  # bazen tekrar giriş sorunlarını azaltır
+    )
 
+auth_manager = st.session_state.auth_manager
 query_params = st.query_params
 code = query_params.get("code", [None])[0] if isinstance(query_params.get("code"), list) else query_params.get("code")
 
@@ -47,7 +49,7 @@ if "token_info" not in st.session_state:
             st.experimental_set_query_params()
             st.experimental_rerun()
         except Exception as e:
-            st.error("Token alınamadı. Yeniden giriş yapmayı deneyin.")
+            st.error(f"Token alınamadı. Hata: {str(e)}")
             st.stop()
     else:
         auth_url = auth_manager.get_authorize_url()
