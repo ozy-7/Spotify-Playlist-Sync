@@ -27,6 +27,7 @@ if "cache_path" not in st.session_state:
     temp_dir = tempfile.gettempdir()
     st.session_state.cache_path = os.path.join(temp_dir, f".spotify_cache_{session_id}")
 
+# 🎫 Yetkilendirme yöneticisini her zaman yeniden oluştur (session_state'e koyma!)
 auth_manager = SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
@@ -35,38 +36,14 @@ auth_manager = SpotifyOAuth(
     cache_path=st.session_state.cache_path,
     show_dialog=True
 )
-auth_manager = st.session_state.auth_manager
-query_params = st.query_params
-code = query_params.get("code", [None])[0] if isinstance(query_params.get("code"), list) else query_params.get("code")
 
+# 🔍 Kod parametresini al
+code = st.query_params.get("code")
+if isinstance(code, list):
+    code = code[0]
+
+# 🧪 Eğer token yoksa ve kod varsa: token al ve sakla
 if "token_info" not in st.session_state:
-    if code:
-        try:
-            token_info = auth_manager.get_access_token(code=code, as_dict=True)
-            st.session_state.token_info = token_info
-            st.write("✅ Token alındı ve kaydedildi.")  # DEBUG
-            st.query_params.pop("code", None)
-            st.rerun()
-        except Exception as e:
-            st.error(f"Token alınamadı. Hata: {str(e)}")
-            st.stop()
-    else:
-        auth_url = auth_manager.get_authorize_url()
-        st.markdown(f"[👉 Spotify ile Giriş Yap]({auth_url})", unsafe_allow_html=True)
-        st.stop()
-
-
-# Token varsa giriş yapıldı
-if "token_info" in st.session_state:
-    sp = spotipy.Spotify(auth_manager=auth_manager)
-    try:
-        user = sp.current_user()
-        st.success(f"Hoş geldin, **{user['display_name']}**!")
-    except Exception as e:
-        st.error(f"Giriş başarısız: {str(e)}")
-        st.stop()
-else:
-    code = st.query_params.get("code")
     if code:
         try:
             token_info = auth_manager.get_access_token(code=code, as_dict=True)
@@ -82,16 +59,18 @@ else:
         st.markdown(f"[👉 Spotify ile Giriş Yap]({auth_url})", unsafe_allow_html=True)
         st.stop()
 
+# ✅ Giriş başarılıysa spotipy istemcisi hazır
 sp = spotipy.Spotify(auth_manager=auth_manager)
 
+# 👤 Kullanıcıyı getir
 try:
     user = sp.current_user()
     st.success(f"Hoş geldin, **{user['display_name']}**!")
-except Exception:
-    st.error("Giriş başarısız. Lütfen tekrar giriş yap.")
+except Exception as e:
+    st.error(f"Giriş başarısız: {str(e)}")
     st.stop()
 
-# 🎵 Kullanıcının playlistlerini çek
+# 🎵 Playlistleri getir
 playlists = sp.current_user_playlists(limit=50)
 playlist_dict = {p['name']: p['id'] for p in playlists['items']}
 
@@ -118,7 +97,7 @@ if st.button("🔁 Sync Playlists"):
 
         new_uris = [uri for uri in source_uris if uri not in target_uris]
 
-        # Hedef playlist'te fazla varsa sil
+        # Fazla şarkı varsa hedef playlist'ten sil
         while len(target_uris) + len(new_uris) > count and target_tracks:
             to_remove = target_tracks[0]["track"]["uri"]
             sp.playlist_remove_all_occurrences_of_items(target_id, [to_remove])
