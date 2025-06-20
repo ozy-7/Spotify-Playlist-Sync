@@ -46,7 +46,7 @@ if "access_token" not in st.session_state:
         st.stop()
 
 # 🟢 Kullanıcı başarıyla giriş yaptıysa:
-sp = spotipy.Spotify(auth=st.session_state.access_token)
+sp = spotipy.Spotify(auth_manager=auth_manager)
 
 try:
     user = sp.current_user()
