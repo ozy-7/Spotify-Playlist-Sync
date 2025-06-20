@@ -42,17 +42,18 @@ code = query_params.get("code", [None])[0] if isinstance(query_params.get("code"
 if "token_info" not in st.session_state:
     if code:
         try:
-            token_info = auth_manager.get_cached_token(code, as_dict=True)
-            st.session_state.token_info = token_info  # 🎯 Session'da sakla
-            st.query_params()  # 🔄 URL'deki `code` parametresini temizle
-            st.rerun()
-        except spotipy.oauth2.SpotifyOauthError:
+            token_info = auth_manager.get_access_token(code=code, as_dict=True)
+            st.session_state.token_info = token_info
+            st.experimental_set_query_params()
+            st.experimental_rerun()
+        except Exception as e:
             st.error("Token alınamadı. Yeniden giriş yapmayı deneyin.")
             st.stop()
     else:
         auth_url = auth_manager.get_authorize_url()
         st.markdown(f"[👉 Login with Spotify]({auth_url})", unsafe_allow_html=True)
         st.stop()
+
 
 # 🟢 Kullanıcı başarıyla giriş yaptıysa:
 sp = spotipy.Spotify(auth=st.session_state.token_info["access_token"])
