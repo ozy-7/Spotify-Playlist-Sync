@@ -33,8 +33,7 @@ auth_manager = SpotifyOAuth(
     client_secret=CLIENT_SECRET,
     redirect_uri=REDIRECT_URI,
     scope=SCOPE,
-    cache_path=st.session_state.cache_path,
-    show_dialog=True  # Her kullanıcıdan giriş istemek için
+    cache_path=st.session_state.cache_path
 )
 
 query_params = st.query_params
