@@ -54,6 +54,10 @@ if "token_info" not in st.session_state:
 
 
 # 🟢 Kullanıcı başarıyla giriş yaptıysa:
+if "token_info" not in st.session_state:
+    st.warning("Giriş yapılmadı. Lütfen Spotify ile giriş yapın.")
+    st.stop()
+
 sp = spotipy.Spotify(auth=st.session_state.token_info["access_token"])
 
 try:
