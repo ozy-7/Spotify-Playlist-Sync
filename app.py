@@ -64,7 +64,7 @@ if "token_info" not in st.session_state:
     st.warning("Giriş yapılmadı. Lütfen Spotify ile giriş yapın.")
     st.stop()
 
-sp = spotipy.Spotify(auth=st.session_state.token_info["access_token"])
+sp = spotipy.Spotify(auth_manager=auth_manager)
 
 try:
     user = sp.current_user()
