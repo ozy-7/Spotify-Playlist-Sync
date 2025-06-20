@@ -27,16 +27,14 @@ if "cache_path" not in st.session_state:
     temp_dir = tempfile.gettempdir()
     st.session_state.cache_path = os.path.join(temp_dir, f".spotify_cache_{session_id}")
 
-if "auth_manager" not in st.session_state:
-    st.session_state.auth_manager = SpotifyOAuth(
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-        redirect_uri=REDIRECT_URI,
-        scope=SCOPE,
-        cache_path=st.session_state.cache_path,
-        show_dialog=True  # bazen tekrar giriş sorunlarını azaltır
-    )
-
+auth_manager = SpotifyOAuth(
+    client_id=CLIENT_ID,
+    client_secret=CLIENT_SECRET,
+    redirect_uri=REDIRECT_URI,
+    scope=SCOPE,
+    cache_path=st.session_state.cache_path,
+    show_dialog=True
+)
 auth_manager = st.session_state.auth_manager
 query_params = st.query_params
 code = query_params.get("code", [None])[0] if isinstance(query_params.get("code"), list) else query_params.get("code")
@@ -58,11 +56,31 @@ if "token_info" not in st.session_state:
         st.stop()
 
 
-# 🟢 Kullanıcı başarıyla giriş yaptıysa:
-if "token_info" not in st.session_state:
-    st.write("⛏ Kod geldi mi? code =", code)  # DEBUG
-    st.warning("Giriş yapılmadı. Lütfen Spotify ile giriş yapın.")
-    st.stop()
+# Token varsa giriş yapıldı
+if "token_info" in st.session_state:
+    sp = spotipy.Spotify(auth_manager=auth_manager)
+    try:
+        user = sp.current_user()
+        st.success(f"Hoş geldin, **{user['display_name']}**!")
+    except Exception as e:
+        st.error(f"Giriş başarısız: {str(e)}")
+        st.stop()
+else:
+    code = st.query_params.get("code")
+    if code:
+        try:
+            token_info = auth_manager.get_access_token(code=code, as_dict=True)
+            st.session_state.token_info = token_info
+            st.write("✅ Token alındı ve kaydedildi.")
+            st.query_params.pop("code", None)
+            st.rerun()
+        except Exception as e:
+            st.error(f"Token alınamadı. Hata: {str(e)}")
+            st.stop()
+    else:
+        auth_url = auth_manager.get_authorize_url()
+        st.markdown(f"[👉 Spotify ile Giriş Yap]({auth_url})", unsafe_allow_html=True)
+        st.stop()
 
 sp = spotipy.Spotify(auth_manager=auth_manager)
 
