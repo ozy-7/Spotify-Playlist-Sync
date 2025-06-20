@@ -42,7 +42,7 @@ code = query_params.get("code", [None])[0] if isinstance(query_params.get("code"
 if "token_info" not in st.session_state:
     if code:
         try:
-            token_info = auth_manager.get_access_token(code, as_dict=True)
+            token_info = auth_manager.get_cached_token(code, as_dict=True)
             st.session_state.token_info = token_info  # 🎯 Session'da sakla
             st.query_params()  # 🔄 URL'deki `code` parametresini temizle
             st.rerun()
@@ -55,7 +55,7 @@ if "token_info" not in st.session_state:
         st.stop()
 
 # 🟢 Kullanıcı başarıyla giriş yaptıysa:
-sp = spotipy.Spotify(auth=st.session_state.token_info["access_token"])
+sp = spotipy.Spotify(auth=st.session_state.token_info["cached_token"])
 
 try:
     user = sp.current_user()
