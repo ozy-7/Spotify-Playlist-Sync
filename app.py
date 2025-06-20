@@ -46,15 +46,21 @@ if "token_info" not in st.session_state:
         try:
             token_info = auth_manager.get_access_token(code=code, as_dict=True)
             st.session_state.token_info = token_info
-            st.query_params.pop("code", None)  # ✅ Yeni yöntemle temizle
+            st.write("✅ Token alındı ve kaydedildi.")  # DEBUG
+            st.query_params.pop("code", None)
             st.rerun()
         except Exception as e:
             st.error(f"Token alınamadı. Hata: {str(e)}")
             st.stop()
+    else:
+        auth_url = auth_manager.get_authorize_url()
+        st.markdown(f"[👉 Spotify ile Giriş Yap]({auth_url})", unsafe_allow_html=True)
+        st.stop()
 
 
 # 🟢 Kullanıcı başarıyla giriş yaptıysa:
 if "token_info" not in st.session_state:
+    st.write("⛏ Kod geldi mi? code =", code)  # DEBUG
     st.warning("Giriş yapılmadı. Lütfen Spotify ile giriş yapın.")
     st.stop()
 
