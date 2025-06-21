@@ -5,7 +5,7 @@ import uuid
 import os
 from spotipy.oauth2 import SpotifyOAuth
 
-# 📌 Streamlit secrets içinden client bilgilerini alıyoruz
+# Streamlit secrets içinden client bilgilerini alıyoruz
 CLIENT_ID = st.secrets["client_id"]
 CLIENT_SECRET = st.secrets["client_secret"]
 REDIRECT_URI = "https://spotify-playlist-sync.streamlit.app"
@@ -21,13 +21,13 @@ SCOPE = (
 st.set_page_config(page_title="Spotify Playlist Sync", page_icon="🎵")
 st.title("🎵 Spotify Playlist Sync")
 
-# 🧠 Oturuma özel cache path oluştur
+# Oturuma özel cache path oluştur
 if "cache_path" not in st.session_state:
     session_id = str(uuid.uuid4())
     temp_dir = tempfile.gettempdir()
     st.session_state.cache_path = os.path.join(temp_dir, f".spotify_cache_{session_id}")
 
-# 🎫 Yetkilendirme yöneticisini her zaman yeniden oluştur (session_state'e koyma!)
+# Yetkilendirme yöneticisini her zaman yeniden oluştur (session_state'e koyma!)
 auth_manager = SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
@@ -37,16 +37,17 @@ auth_manager = SpotifyOAuth(
     show_dialog=True
 )
 
-# 🔍 Kod parametresini al
+# Kod parametresini al
 code = st.query_params.get("code")
 if isinstance(code, list):
     code = code[0]
 
-# 🧪 Eğer token yoksa ve kod varsa: token al ve sakla
+# Eğer token yoksa ve kod varsa: token al ve sakla
 if "token_info" not in st.session_state:
     if code:
         try:
-            token_info = auth_manager.get_access_token(code=code, as_dict=True)
+            auth_manager.get_access_token(code=code)
+            token_info = auth_manager.get_cached_token()
             st.session_state.token_info = token_info
             st.write("✅ Token alındı ve kaydedildi.")
             st.query_params.pop("code", None)
@@ -59,10 +60,10 @@ if "token_info" not in st.session_state:
         st.markdown(f"[👉 Spotify ile Giriş Yap]({auth_url})", unsafe_allow_html=True)
         st.stop()
 
-# ✅ Giriş başarılıysa spotipy istemcisi hazır
+# Giriş başarılıysa spotipy istemcisi hazır
 sp = spotipy.Spotify(auth_manager=auth_manager)
 
-# 👤 Kullanıcıyı getir
+# Kullanıcıyı getir
 try:
     user = sp.current_user()
     st.success(f"Hoş geldin, **{user['display_name']}**!")
@@ -70,7 +71,7 @@ except Exception as e:
     st.error(f"Giriş başarısız: {str(e)}")
     st.stop()
 
-# 🎵 Playlistleri getir
+# Playlistleri getir
 playlists = sp.current_user_playlists(limit=50)
 playlist_dict = {p['name']: p['id'] for p in playlists['items']}
 
